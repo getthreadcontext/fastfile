@@ -1,0 +1,136 @@
+/* Global Reset and Terminal Green/Black Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: 'Share Tech Mono', monospace;
+  line-height: 1.4;
+  font-weight: 400;
+  
+  /* Terminal Green/Black Color Palette */
+  --terminal-green: #00ff00;
+  --bright-green: #00ff41;
+  --dark-green: #008800;
+  --black: #000000;
+  --dark-bg: #0a0a0a;
+  --darker-bg: #050505;
+  --matrix-green: #00ff41;
+  
+  color-scheme: dark;
+  color: var(--terminal-green);
+  background-color: var(--black);
+  
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--black);
+  color: var(--terminal-green);
+  font-family: 'Share Tech Mono', monospace;
+  position: relative;
+}
+
+/* Remove default styling for better terminal experience */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: var(--bright-green);
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+a:hover {
+  color: var(--terminal-green);
+  text-shadow: 0 0 10px currentColor;
+}
+
+button {
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  transition: all 0.3s ease;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 2px solid var(--terminal-green);
+  outline-offset: 2px;
+}
+
+/* Selection styles */
+::selection {
+  background: var(--terminal-green);
+  color: var(--black);
+}
+
+::-moz-selection {
+  background: var(--terminal-green);
+  color: var(--black);
+}
+
+/* Remove scrollbar styles since we're hiding overflow */
+
+/* Root container */
+#root {
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --terminal-green: #00ff00;
+    --bright-green: #00ff41;
+    --dark-green: #008800;
+    --black: #000000;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  #root {
+    background: white !important;
+    color: black !important;
+  }
+}
