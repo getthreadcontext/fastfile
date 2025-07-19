@@ -81,7 +81,7 @@ function App() {
 
   const fetchSupportedFormats = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/formats');
+      const response = await fetch('/api/formats');
       const formats = await response.json();
       setSupportedFormats(formats);
     } catch (error) {
@@ -141,7 +141,7 @@ function App() {
     formData.append('quality', quality);
 
     try {
-      const response = await fetch('http://localhost:3001/api/convert', {
+      const response = await fetch('/api/convert', {
         method: 'POST',
         body: formData,
       });
@@ -164,7 +164,7 @@ function App() {
 
   const handleDownload = () => {
     if (conversionResult?.downloadUrl) {
-      window.open(`http://localhost:3001${conversionResult.downloadUrl}`, '_blank');
+      window.open(conversionResult.downloadUrl, '_blank');
     }
   };
 

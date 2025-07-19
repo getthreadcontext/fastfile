@@ -7,7 +7,7 @@ const fs = require('fs-extra');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 
 // Middleware
 app.use(cors());
@@ -282,7 +282,7 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: error.message });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`FastFile Backend server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
