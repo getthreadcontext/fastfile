@@ -171,10 +171,10 @@ function App() {
    }
   };  const getFileType = (filename: string): string => {
    const extension = filename.split('.').pop()?.toLowerCase();
-   const videoFormats = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'];
-   const audioFormats = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a'];
-   const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-   const documentFormats = ['pdf', 'docx', 'doc', 'txt', 'md', 'html', 'htm', 'rtf'];
+   const videoFormats = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'mpeg', 'mpg', 'wmv', '3gp', 'm4v', 'mts', 'm2ts', 'ts', 'ogv', 'f4v', 'gif'];
+   const audioFormats = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma', 'oga', 'aiff', 'amr', 'opus', 'ac3', 'caf', 'dss', 'voc', 'weba'];
+   const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif', 'heic', 'ico', 'svg', 'avif', 'psd', 'eps', 'ai', 'cr2', 'arw', 'dng', 'raf', 'nef', 'rw2', 'crw', 'orf', 'srw', 'x3f', 'dcr', 'mrw', '3fr', 'erf', 'mef', 'mos', 'nrw', 'pef', 'rwl', 'srf'];
+   const documentFormats = ['pdf', 'doc', 'docx', 'odt', 'txt', 'rtf', 'html', 'htm', 'md', 'tex', 'djvu', 'wps', 'abw', 'pages', 'dotx'];
    const archiveFormats = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'];
 
    if (videoFormats.includes(extension || '')) return 'video';
@@ -189,7 +189,8 @@ function App() {
    const fileType = getFileType(selectedFile.name);
    switch (fileType) {
      case 'video':
-       return [...supportedFormats.video, ...supportedFormats.audio, ...supportedFormats.image];
+       // Videos can be converted to video formats, audio formats, and GIF only
+       return [...supportedFormats.video, ...supportedFormats.audio, 'gif'];
      case 'audio':
        return supportedFormats.audio;
      case 'image':
@@ -251,7 +252,7 @@ function App() {
                </label>                <input
                  id="file-input"
                  type="file"
-                 accept=".mp4,.avi,.mkv,.mov,.wmv,.flv,.webm,.mp3,.wav,.aac,.flac,.ogg,.m4a,.jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.docx,.doc,.txt,.md,.html,.htm,.rtf,.zip,.rar,.7z,.tar,.gz,.bz2"
+                 accept=".mp4,.avi,.mov,.mkv,.webm,.flv,.mpeg,.mpg,.wmv,.3gp,.m4v,.mts,.m2ts,.ts,.ogv,.f4v,.gif,.mp3,.wav,.aac,.flac,.ogg,.m4a,.wma,.oga,.aiff,.amr,.opus,.ac3,.caf,.dss,.voc,.weba,.jpg,.jpeg,.png,.bmp,.webp,.tiff,.tif,.heic,.ico,.svg,.avif,.psd,.eps,.ai,.cr2,.arw,.dng,.raf,.nef,.rw2,.crw,.orf,.srw,.x3f,.dcr,.mrw,.3fr,.erf,.mef,.mos,.nrw,.pef,.rwl,.srf,.pdf,.doc,.docx,.odt,.txt,.rtf,.html,.htm,.md,.tex,.djvu,.wps,.abw,.pages,.dotx,.zip,.rar,.7z,.tar,.gz,.bz2"
                  onChange={handleFileSelect}
                  className="file-input"
                />

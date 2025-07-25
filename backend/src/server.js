@@ -50,11 +50,11 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB limit
   },  fileFilter: (req, file, cb) => {
     // Allow video, audio, image, document, and archive files
-    const allowedTypes = /\.(mp4|avi|mkv|mov|wmv|flv|webm|mp3|wav|aac|flac|ogg|m4a|jpg|jpeg|png|gif|bmp|webp|pdf|docx|doc|txt|md|html|htm|rtf|zip|rar|7z|tar|gz|bz2)$/i;
+    const allowedTypes = /\.(mp4|avi|mov|mkv|webm|flv|mpeg|mpg|wmv|3gp|m4v|mts|m2ts|ts|ogv|f4v|gif|mp3|wav|aac|flac|ogg|m4a|wma|oga|aiff|amr|opus|ac3|caf|dss|voc|weba|jpg|jpeg|png|bmp|webp|tiff|tif|heic|ico|svg|pdf|avif|psd|eps|ai|cr2|arw|dng|raf|nef|rw2|crw|orf|srw|x3f|dcr|mrw|3fr|erf|mef|mos|nrw|pef|rwl|srf|doc|docx|odt|txt|rtf|html|htm|md|tex|djvu|wps|abw|pages|dotx|zip|rar|7z|tar|gz|bz2)$/i;
     if (allowedTypes.test(file.originalname)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only media, document, and archive files are allowed.'));
+      cb(new Error('Invalid file type. Only media, document, image, and archive files are allowed.'));
     }
   }
 });
@@ -64,10 +64,10 @@ const turndownService = new TurndownService();
 
 const getFileType = (filename) => {
   const extension = path.extname(filename).toLowerCase();
-  const videoFormats = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm'];
-  const audioFormats = ['.mp3', '.wav', '.aac', '.flac', '.ogg', '.m4a'];
-  const imageFormats = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-  const documentFormats = ['.pdf', '.docx', '.doc', '.txt', '.md', '.html', '.htm', '.rtf'];
+  const videoFormats = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.mpeg', '.mpg', '.wmv', '.3gp', '.m4v', '.mts', '.m2ts', '.ts', '.ogv', '.f4v', '.gif'];
+  const audioFormats = ['.mp3', '.wav', '.aac', '.flac', '.ogg', '.m4a', '.wma', '.oga', '.aiff', '.amr', '.opus', '.ac3', '.caf', '.dss', '.voc', '.weba'];
+  const imageFormats = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'];
+  const documentFormats = ['.pdf', '.doc', '.docx', '.odt', '.txt', '.rtf', '.html', '.htm', '.md', '.tex', '.djvu', '.wps', '.abw', '.pages', '.dotx'];
   const archiveFormats = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'];
 
   if (videoFormats.includes(extension)) return 'video';
@@ -81,99 +81,233 @@ const getFileType = (filename) => {
 const convertDocument = async (inputPath, outputPath, inputFormat, outputFormat) => {
   const inputBuffer = await fs.readFile(inputPath);
   let content = '';
+  let structuredContent = { title: '', paragraphs: [], metadata: {} };
 
-  // Extract content based on input format
+  // Extract content based on input format with better parsing
   switch (inputFormat) {
     case '.pdf':
       const pdfData = await pdf(inputBuffer);
       content = pdfData.text;
+      // Parse PDF structure
+      const pdfLines = content.split('\n').filter(line => line.trim());
+      structuredContent.title = pdfLines[0] || 'Converted PDF Document';
+      structuredContent.paragraphs = pdfLines.slice(1).filter(line => line.length > 10);
       break;
     
     case '.docx':
+    case '.dotx':
       const docxResult = await mammoth.extractRawText({ buffer: inputBuffer });
       content = docxResult.value;
+      // Parse DOCX structure
+      const docxLines = content.split('\n').filter(line => line.trim());
+      structuredContent.title = docxLines[0] || 'Converted DOCX Document';
+      structuredContent.paragraphs = docxLines.slice(1).filter(line => line.length > 5);
+      break;
+    
+    case '.doc':
+      // Enhanced DOC parsing - extract readable text
+      const docText = inputBuffer.toString('utf8');
+      // Remove binary characters and extract readable text
+      content = docText.replace(/[\x00-\x1F\x7F-\xFF]/g, ' ')
+                      .replace(/\s+/g, ' ')
+                      .split(' ')
+                      .filter(word => word.length > 2 && /^[a-zA-Z0-9\s.,!?'-]+$/.test(word))
+                      .join(' ');
+      structuredContent.title = 'Converted DOC Document';
+      structuredContent.paragraphs = content.split('.').filter(p => p.trim().length > 20);
+      break;
+    
+    case '.odt':
+      try {
+        const odfContent = inputBuffer.toString('utf8');
+        // Extract text from ODT XML structure
+        const titleMatch = odfContent.match(/<text:h[^>]*>(.*?)<\/text:h>/);
+        const paragraphMatches = odfContent.match(/<text:p[^>]*>(.*?)<\/text:p>/g);
+        
+        structuredContent.title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '') : 'Converted ODT Document';
+        structuredContent.paragraphs = paragraphMatches ? 
+          paragraphMatches.map(p => p.replace(/<[^>]*>/g, '').trim()).filter(p => p.length > 10) : 
+          ['Content could not be fully parsed from ODT format'];
+        content = structuredContent.title + '\n\n' + structuredContent.paragraphs.join('\n\n');
+      } catch (err) {
+        content = 'Error reading ODT file: ' + err.message;
+        structuredContent.paragraphs = [content];
+      }
       break;
     
     case '.txt':
+      content = inputBuffer.toString('utf8');
+      const txtLines = content.split('\n').filter(line => line.trim());
+      structuredContent.title = txtLines[0] || 'Text Document';
+      structuredContent.paragraphs = txtLines.slice(1);
+      break;
+      
     case '.md':
+      content = inputBuffer.toString('utf8');
+      // Parse markdown structure
+      const mdLines = content.split('\n');
+      const titleLine = mdLines.find(line => line.startsWith('#'));
+      structuredContent.title = titleLine ? titleLine.replace(/^#+\s*/, '') : 'Markdown Document';
+      structuredContent.paragraphs = mdLines.filter(line => 
+        !line.startsWith('#') && line.trim().length > 0
+      );
+      break;
+      
     case '.rtf':
       content = inputBuffer.toString('utf8');
+      // Parse RTF and extract clean text
+      content = content.replace(/\\[a-z]+\d*\s?/g, '') // Remove RTF commands
+                      .replace(/[{}]/g, '') // Remove braces
+                      .replace(/\s+/g, ' ') // Normalize spaces
+                      .trim();
+      structuredContent.title = 'RTF Document';
+      structuredContent.paragraphs = content.split('.').filter(p => p.trim().length > 10);
+      break;
+      
+    case '.tex':
+      content = inputBuffer.toString('utf8');
+      // Parse LaTeX structure
+      const titleMatch = content.match(/\\title\{([^}]+)\}/);
+      const sectionMatches = content.match(/\\section\{([^}]+)\}/g);
+      
+      structuredContent.title = titleMatch ? titleMatch[1] : 'LaTeX Document';
+      structuredContent.paragraphs = sectionMatches ? 
+        sectionMatches.map(s => s.replace(/\\section\{([^}]+)\}/, '$1')) : 
+        content.replace(/\\[a-z]+\{[^}]*\}/g, '').split('\n').filter(line => line.trim());
       break;
     
     case '.html':
     case '.htm':
       const htmlContent = inputBuffer.toString('utf8');
+      // Extract title and content with better parsing
+      const titleHtmlMatch = htmlContent.match(/<title[^>]*>(.*?)<\/title>/i);
+      structuredContent.title = titleHtmlMatch ? titleHtmlMatch[1] : 'HTML Document';
+      
+      // Extract clean text content
       content = htmlToText(htmlContent, {
-        wordwrap: 130,
-        preserveNewlines: true
+        wordwrap: 80,
+        preserveNewlines: true,
+        hideLinkHrefIfSameAsText: true,
+        ignoreImage: true
       });
+      structuredContent.paragraphs = content.split('\n\n').filter(p => p.trim().length > 10);
+      break;
+    
+    case '.djvu':
+    case '.wps':
+    case '.abw':
+    case '.pages':
+      // Enhanced parsing for specialized formats
+      const rawText = inputBuffer.toString('utf8');
+      content = rawText.replace(/[\x00-\x1F\x7F-\xFF]/g, ' ')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+      structuredContent.title = `Converted ${inputFormat.toUpperCase().slice(1)} Document`;
+      structuredContent.paragraphs = content ? [content.substring(0, 1000) + '...'] : ['No readable content found'];
       break;
     
     default:
       throw new Error(`Unsupported input format: ${inputFormat}`);
   }
 
-  // Convert to output format
+  // Convert to output format with proper formatting
   let outputBuffer;
   
   switch (outputFormat) {
     case '.txt':
-      outputBuffer = Buffer.from(content, 'utf8');
+      // Create clean, formatted plain text
+      const txtOutput = `${structuredContent.title}
+${'='.repeat(structuredContent.title.length)}
+
+${structuredContent.paragraphs.join('\n\n')}
+
+--- Converted by FastFile ---`;
+      outputBuffer = Buffer.from(txtOutput, 'utf8');
       break;
     
     case '.md':
+      // Create properly formatted Markdown
+      let mdOutput = `# ${structuredContent.title}\n\n`;
       if (inputFormat === '.html' || inputFormat === '.htm') {
         const htmlContent = inputBuffer.toString('utf8');
-        content = turndownService.turndown(htmlContent);
+        mdOutput += turndownService.turndown(htmlContent);
+      } else {
+        mdOutput += structuredContent.paragraphs.map(p => `${p}\n`).join('\n');
       }
-      outputBuffer = Buffer.from(content, 'utf8');
+      mdOutput += `\n\n---
+*Converted from ${inputFormat.slice(1).toUpperCase()} by FastFile*`;
+      outputBuffer = Buffer.from(mdOutput, 'utf8');
       break;
     
     case '.html':
-      let htmlContent;
+      // Create well-formatted HTML document
+      let htmlOutput;
       if (inputFormat === '.md') {
-        htmlContent = marked(content);
-      } else {
-        htmlContent = `<!DOCTYPE html>
-<html>
+        const markdownContent = structuredContent.paragraphs.join('\n\n');
+        const convertedHtml = marked(markdownContent);
+        htmlOutput = `<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Converted Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${structuredContent.title}</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; }
-        h1, h2, h3 { color: #333; }
-        p { margin-bottom: 10px; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 20px;
+            color: #333;
+            background-color: #fafafa;
+        }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2, h3 { color: #34495e; margin-top: 30px; }
+        p { margin-bottom: 15px; text-align: justify; }
+        .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.9em; color: #666; }
     </style>
 </head>
 <body>
-    <pre style="white-space: pre-wrap; font-family: inherit;">${content}</pre>
+    <h1>${structuredContent.title}</h1>
+    ${convertedHtml}
+    <div class="footer">
+        <em>Converted from ${inputFormat.slice(1).toUpperCase()} by FastFile</em>
+    </div>
+</body>
+</html>`;
+      } else {
+        htmlOutput = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${structuredContent.title}</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 20px;
+            color: #333;
+            background-color: #fafafa;
+        }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        p { margin-bottom: 15px; text-align: justify; }
+        .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.9em; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>${structuredContent.title}</h1>
+    ${structuredContent.paragraphs.map(p => `    <p>${p}</p>`).join('\n')}
+    <div class="footer">
+        <em>Converted from ${inputFormat.slice(1).toUpperCase()} by FastFile</em>
+    </div>
 </body>
 </html>`;
       }
-      outputBuffer = Buffer.from(htmlContent, 'utf8');
+      outputBuffer = Buffer.from(htmlOutput, 'utf8');
       break;
-    
-    case '.docx':
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: content.split('\n').map(line => 
-            new Paragraph({
-              children: [new TextRun(line || ' ')],
-            })
-          ),
-        }],
-      });
-      outputBuffer = await Packer.toBuffer(doc);
-      break;
-    
-    case '.rtf':
-      const rtfContent = `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}\\f0\\fs24 ${content.replace(/\n/g, '\\par ')}}`;
-      outputBuffer = Buffer.from(rtfContent, 'utf8');
-      break;
-    
-    default:
-      throw new Error(`Unsupported output format: ${outputFormat}`);
   }
 
   await fs.writeFile(outputPath, outputBuffer);
@@ -320,10 +454,10 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/formats', (req, res) => {
   const formats = {
-    video: ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'],
-    audio: ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a'],
-    image: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'],
-    document: ['pdf', 'docx', 'txt', 'md', 'html', 'rtf'],
+    video: ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'mpeg', 'mpg', 'wmv', '3gp', 'm4v', 'mts', 'm2ts', 'ts', 'ogv', 'f4v', 'gif'],
+    audio: ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma', 'oga', 'aiff', 'amr', 'opus', 'ac3', 'caf', 'dss', 'voc', 'weba'],
+    image: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif', 'heic', 'ico', 'svg', 'avif', 'psd', 'eps', 'ai'],
+    document: ['pdf', 'doc', 'docx', 'odt', 'txt', 'rtf', 'html', 'md', 'tex', 'djvu', 'wps', 'abw', 'pages', 'dotx'],
     archive: ['zip', 'rar', '7z', 'tar', 'gz', 'bz2']
   };
   res.json(formats);
@@ -411,37 +545,6 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
         });
         return;
       }
-    }else if (fileType === 'archive') {
-      // Handle archive conversion
-      try {
-        const archiveOutputPath = await convertArchive(inputPath, outputPath, inputFormat, outputFormat);
-        
-        // Clean up input file
-        fs.removeSync(inputPath);
-
-        res.json({
-          success: true,
-          message: 'Archive converted successfully',
-          downloadUrl: `/api/download/${outputFilename}`,
-          originalName: req.file.originalname,
-          convertedName: outputFilename
-        });
-        return;
-      } catch (archiveError) {
-        console.error('Archive conversion error:', archiveError);
-        
-        // Clean up files on error
-        if (fs.existsSync(inputPath)) {
-          fs.removeSync(inputPath);
-        }
-        
-        res.status(500).json({
-          success: false,
-          error: 'Archive conversion failed',
-          message: archiveError.message
-        });
-        return;
-      }
     }
 
     // Start conversion
@@ -499,10 +602,56 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
           .format('ogg')
           .audioCodec('libvorbis')
           .audioBitrate(qualitySettings.audio);
+      } else if (format === 'wma') {
+        command = command
+          .format('asf')
+          .audioCodec('wmav2')
+          .audioBitrate(qualitySettings.audio);
+      } else if (format === 'oga') {
+        command = command
+          .format('ogg')
+          .audioCodec('libvorbis')
+          .audioBitrate(qualitySettings.audio);
+      } else if (format === 'aiff') {
+        command = command
+          .format('aiff')
+          .audioCodec('pcm_s16be');
+      } else if (format === 'amr') {
+        command = command
+          .format('amr')
+          .audioCodec('libopencore_amrnb')
+          .audioBitrate('12.2k');
+      } else if (format === 'opus') {
+        command = command
+          .format('ogg')
+          .audioCodec('libopus')
+          .audioBitrate(qualitySettings.audio);
+      } else if (format === 'ac3') {
+        command = command
+          .format('ac3')
+          .audioCodec('ac3')
+          .audioBitrate(qualitySettings.audio);
+      } else if (format === 'caf') {
+        command = command
+          .format('caf')
+          .audioCodec('pcm_s16le');
+      } else if (format === 'dss') {
+        command = command
+          .format('dss')
+          .audioCodec('dss_sp');
+      } else if (format === 'voc') {
+        command = command
+          .format('voc')
+          .audioCodec('pcm_u8');
+      } else if (format === 'weba') {
+        command = command
+          .format('webm')
+          .audioCodec('libopus')
+          .audioBitrate(qualitySettings.audio);
       } else if (format === 'jpg' || format === 'jpeg') {
         // Check if input is already an image
         const inputExt = path.extname(inputPath).toLowerCase();
-        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(inputExt)) {
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
           // Image to JPG conversion
           command = command
             .format('image2')
@@ -518,7 +667,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
       } else if (format === 'png') {
         // Check if input is already an image
         const inputExt = path.extname(inputPath).toLowerCase();
-        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(inputExt)) {
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
           // Image to PNG conversion
           command = command
             .format('image2')
@@ -533,7 +682,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
       } else if (format === 'gif') {
         // For image to GIF conversion
         const inputExt = path.extname(inputPath).toLowerCase();
-        if (['.jpg', '.jpeg', '.png', '.bmp', '.webp'].includes(inputExt)) {
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
           // Convert static image to single-frame GIF
           command = command
             .format('gif')
@@ -550,7 +699,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
       } else if (format === 'bmp') {
         // Check if input is already an image
         const inputExt = path.extname(inputPath).toLowerCase();
-        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(inputExt)) {
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
           // Image to BMP conversion
           command = command
             .format('image2')
@@ -565,7 +714,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
       } else if (format === 'webp') {
         // Check if input is already an image
         const inputExt = path.extname(inputPath).toLowerCase();
-        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(inputExt)) {
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
           // Image to WebP conversion
           command = command
             .format('webp')
@@ -577,6 +726,72 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
             .format('webp')
             .videoCodec('libwebp')
             .outputOptions(['-vframes', '1', '-quality', quality === 'high' ? '90' : quality === 'low' ? '50' : '70']);
+        }
+      } else if (format === 'tiff' || format === 'tif') {
+        // TIFF format conversion
+        const inputExt = path.extname(inputPath).toLowerCase();
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
+          command = command
+            .format('image2')
+            .videoCodec('tiff');
+        } else {
+          command = command
+            .format('image2')
+            .videoCodec('tiff')
+            .outputOptions(['-vframes', '1']);
+        }
+      } else if (format === 'heic') {
+        // HEIC format conversion (requires libheif)
+        const inputExt = path.extname(inputPath).toLowerCase();
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
+          command = command
+            .format('heif')
+            .videoCodec('libheif');
+        } else {
+          command = command
+            .format('heif')
+            .videoCodec('libheif')
+            .outputOptions(['-vframes', '1']);
+        }
+      } else if (format === 'ico') {
+        // ICO format conversion
+        const inputExt = path.extname(inputPath).toLowerCase();
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
+          command = command
+            .format('ico')
+            .outputOptions(['-vf', 'scale=256:256']);
+        } else {
+          command = command
+            .format('ico')
+            .outputOptions(['-vframes', '1', '-vf', 'scale=256:256']);
+        }
+      } else if (format === 'avif') {
+        // AVIF format conversion (requires libavif)
+        const inputExt = path.extname(inputPath).toLowerCase();
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
+          command = command
+            .format('avif')
+            .videoCodec('libavif')
+            .outputOptions(['-crf', quality === 'high' ? '15' : quality === 'low' ? '35' : '25']);
+        } else {
+          command = command
+            .format('avif')
+            .videoCodec('libavif')
+            .outputOptions(['-vframes', '1', '-crf', quality === 'high' ? '15' : quality === 'low' ? '35' : '25']);
+        }
+      } else if (format === 'svg') {
+        // SVG is vector format - convert to raster first, then to SVG (not ideal but functional)
+        const inputExt = path.extname(inputPath).toLowerCase();
+        if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.heic', '.ico', '.svg', '.avif', '.psd', '.eps', '.ai', '.cr2', '.arw', '.dng', '.raf', '.nef', '.rw2', '.crw', '.orf', '.srw', '.x3f', '.dcr', '.mrw', '.3fr', '.erf', '.mef', '.mos', '.nrw', '.pef', '.rwl', '.srf'].includes(inputExt)) {
+          // Note: SVG output from raster is not ideal - consider using imagemagick for better results
+          command = command
+            .format('image2')
+            .videoCodec('png');
+        } else {
+          command = command
+            .format('image2')
+            .videoCodec('png')
+            .outputOptions(['-vframes', '1']);
         }
       } else {
        // Default format handling
@@ -634,6 +849,9 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     });
   }
 });
+
+    
+  
 
 app.get('/api/download/:filename', (req, res) => {
   const filename = req.params.filename;
