@@ -25,6 +25,14 @@ export class FileUtils {
     '.md', '.tex', '.djvu', '.wps', '.abw', '.pages', '.dotx'
   ];
 
+  private static readonly spreadsheetFormats = [
+    '.xls', '.xlsx', '.ods', '.csv', '.tsv'
+  ];
+
+  private static readonly presentationFormats = [
+    '.ppt', '.pptx', '.odp', '.key'
+  ];
+
   private static readonly archiveFormats = [
     '.zip', '.tar', '.jar', '.tar.gz', '.tar.bz2', '.tar.xz', '.tgz'
   ];
@@ -36,6 +44,8 @@ export class FileUtils {
     if (this.audioFormats.includes(extension)) return 'audio';
     if (this.imageFormats.includes(extension)) return 'image';
     if (this.documentFormats.includes(extension)) return 'document';
+    if (this.spreadsheetFormats.includes(extension)) return 'spreadsheet';
+    if (this.presentationFormats.includes(extension)) return 'presentation';
     if (this.archiveFormats.includes(extension)) return 'archive';
     
     return 'unknown';
@@ -47,6 +57,8 @@ export class FileUtils {
       audio: this.audioFormats.map(ext => ext.slice(1)),
       image: this.imageFormats.map(ext => ext.slice(1)),
       document: this.documentFormats.map(ext => ext.slice(1)),
+      spreadsheet: this.spreadsheetFormats.map(ext => ext.slice(1)),
+      presentation: this.presentationFormats.map(ext => ext.slice(1)),
       archive: this.archiveFormats.map(ext => ext.slice(1))
     };
   }

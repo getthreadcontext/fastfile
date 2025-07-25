@@ -21,6 +21,8 @@ export interface SupportedFormats {
   audio: string[];
   image: string[];
   document: string[];
+  spreadsheet: string[];
+  presentation: string[];
   archive: string[];
 }
 
@@ -30,7 +32,7 @@ export interface StructuredContent {
   metadata: Record<string, any>;
 }
 
-export type FileType = 'video' | 'audio' | 'image' | 'document' | 'archive' | 'unknown';
+export type FileType = 'video' | 'audio' | 'image' | 'document' | 'spreadsheet' | 'presentation' | 'archive' | 'unknown';
 
 export interface QualitySettings {
   video: string;

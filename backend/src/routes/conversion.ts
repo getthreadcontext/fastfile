@@ -5,6 +5,8 @@ import { Config } from '../config/config';
 import { DocumentConverter } from '../services/documentConverter';
 import { MediaConverter } from '../services/mediaConverter';
 import { ArchiveConverter } from '../services/archiveConverter';
+import { SpreadsheetConverter } from '../services/spreadsheetConverter';
+import { PresentationConverter } from '../services/presentationConverter';
 import { FileUtils } from '../utils/fileUtils';
 import { upload } from '../middleware/index';
 import type { ConversionResponse } from '../types/index';
@@ -16,6 +18,8 @@ const config = Config.getInstance().get();
 const documentConverter = new DocumentConverter();
 const mediaConverter = new MediaConverter();
 const archiveConverter = new ArchiveConverter();
+const spreadsheetConverter = new SpreadsheetConverter();
+const presentationConverter = new PresentationConverter();
 
 // Upload and convert file
 router.post('/convert', upload.single('file'), async (req: Request, res: Response) => {
@@ -46,6 +50,22 @@ router.post('/convert', upload.single('file'), async (req: Request, res: Respons
           inputPath,
           outputPath,
           inputFormat,
+          outputFormat
+        );
+        break;
+
+      case 'spreadsheet':
+        resultPath = await spreadsheetConverter.convertSpreadsheet(
+          inputPath,
+          outputPath,
+          outputFormat
+        );
+        break;
+
+      case 'presentation':
+        resultPath = await presentationConverter.convertPresentation(
+          inputPath,
+          outputPath,
           outputFormat
         );
         break;

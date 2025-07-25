@@ -16,6 +16,14 @@ sudo apt install -y imagemagick
 echo "Installing GraphicsMagick..."
 sudo apt install -y graphicsmagick
 
+# Install LibreOffice for spreadsheet and presentation support
+echo "Installing LibreOffice..."
+sudo apt install -y libreoffice
+
+# Install unoconv for additional LibreOffice command-line support
+echo "Installing unoconv..."
+sudo apt install -y unoconv
+
 # Install additional image format support
 echo "Installing additional format support..."
 sudo apt install -y libheif-dev libheif1

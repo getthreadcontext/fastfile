@@ -7,12 +7,46 @@ import { marked } from 'marked';
 import TurndownService from 'turndown';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { StructuredContent } from '../types';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 export class DocumentConverter {
   private turndownService: TurndownService;
+  private supportedFormats: string[] = [];
+  private alternativeTools: { [key: string]: boolean } = {
+    libreoffice: false,
+    unoconv: false
+  };
 
   constructor() {
     this.turndownService = new TurndownService();
+    this.initializeCapabilities();
+  }
+
+  private async initializeCapabilities(): Promise<void> {
+    // Always supported formats (using Node.js packages)
+    this.supportedFormats = ['.txt', '.html', '.htm', '.md', '.docx', '.pdf'];
+
+    // Check for LibreOffice (primary tool for Office documents)
+    try {
+      await execAsync('libreoffice --version');
+      this.alternativeTools.libreoffice = true;
+      this.supportedFormats.push('.doc', '.odt', '.rtf');
+      console.log('LibreOffice detected - full document support enabled');
+    } catch (error) {
+      console.warn('LibreOffice not available - using Node.js fallbacks');
+    }
+
+    // Check for unoconv (alternative LibreOffice interface)
+    try {
+      await execAsync('unoconv --version');
+      this.alternativeTools.unoconv = true;
+      console.log('unoconv detected - additional document support');
+    } catch (error) {
+      console.log('unoconv not available');
+    }
   }
 
   async convertDocument(
@@ -21,12 +55,131 @@ export class DocumentConverter {
     inputFormat: string, 
     outputFormat: string
   ): Promise<string> {
+    // Try LibreOffice first for supported formats
+    if (this.canUseLibreOffice(inputFormat, outputFormat)) {
+      try {
+        return await this.convertWithLibreOffice(inputPath, outputPath, outputFormat);
+      } catch (error) {
+        console.warn('LibreOffice conversion failed, trying unoconv:', error);
+        
+        // Try unoconv as fallback
+        if (this.alternativeTools.unoconv) {
+          try {
+            return await this.convertWithUnoconv(inputPath, outputPath, outputFormat);
+          } catch (unoconvError) {
+            console.warn('unoconv conversion also failed, using Node.js fallback:', unoconvError);
+          }
+        }
+      }
+    }
+
+    // Fallback to Node.js-based conversion
     const inputBuffer = await fs.readFile(inputPath);
     const structuredContent = await this.parseInput(inputBuffer, inputFormat);
     const outputBuffer = await this.generateOutput(structuredContent, outputFormat, inputFormat);
     
     await fs.writeFile(outputPath, outputBuffer);
     return outputPath;
+  }
+
+  private canUseLibreOffice(inputFormat: string, outputFormat: string): boolean {
+    if (!this.alternativeTools.libreoffice) return false;
+    
+    const libreOfficeFormats = ['.doc', '.docx', '.odt', '.rtf', '.pdf', '.html', '.txt'];
+    return libreOfficeFormats.includes(inputFormat.toLowerCase()) && 
+           libreOfficeFormats.includes(outputFormat.toLowerCase());
+  }
+
+  private async convertWithLibreOffice(
+    inputPath: string,
+    outputPath: string,
+    outputFormat: string
+  ): Promise<string> {
+    const outputDir = path.dirname(outputPath);
+    
+    let filterType: string;
+    switch (outputFormat.toLowerCase()) {
+      case '.docx':
+        filterType = 'MS Word 2007 XML';
+        break;
+      case '.doc':
+        filterType = 'MS Word 97';
+        break;
+      case '.odt':
+        filterType = 'writer8';
+        break;
+      case '.rtf':
+        filterType = 'Rich Text Format';
+        break;
+      case '.pdf':
+        filterType = 'writer_pdf_Export';
+        break;
+      case '.html':
+        filterType = 'HTML (StarWriter)';
+        break;
+      case '.txt':
+        filterType = 'Text (encoded)';
+        break;
+      default:
+        filterType = 'writer8';
+    }
+
+    try {
+      const command = `libreoffice --headless --convert-to ${outputFormat.slice(1)} --filter-name="${filterType}" --outdir "${outputDir}" "${inputPath}"`;
+      await execAsync(command);
+      
+      // LibreOffice creates files with specific naming, so we may need to rename
+      const expectedOutput = path.join(outputDir, path.basename(inputPath, path.extname(inputPath)) + outputFormat);
+      if (await fs.pathExists(expectedOutput) && expectedOutput !== outputPath) {
+        await fs.move(expectedOutput, outputPath);
+      }
+      
+      return outputPath;
+    } catch (error) {
+      throw new Error(`LibreOffice conversion failed: ${(error as Error).message}`);
+    }
+  }
+
+  private async convertWithUnoconv(
+    inputPath: string,
+    outputPath: string,
+    outputFormat: string
+  ): Promise<string> {
+    let format: string;
+    switch (outputFormat.toLowerCase()) {
+      case '.docx':
+        format = 'docx';
+        break;
+      case '.doc':
+        format = 'doc';
+        break;
+      case '.odt':
+        format = 'odt';
+        break;
+      case '.rtf':
+        format = 'rtf';
+        break;
+      case '.pdf':
+        format = 'pdf';
+        break;
+      case '.html':
+        format = 'html';
+        break;
+      case '.txt':
+        format = 'txt';
+        break;
+      default:
+        format = outputFormat.slice(1);
+    }
+
+    try {
+      const command = `unoconv -f ${format} -o "${outputPath}" "${inputPath}"`;
+      await execAsync(command);
+      
+      return outputPath;
+    } catch (error) {
+      throw new Error(`unoconv conversion failed: ${(error as Error).message}`);
+    }
   }
 
   private async parseInput(inputBuffer: Buffer, inputFormat: string): Promise<StructuredContent> {
