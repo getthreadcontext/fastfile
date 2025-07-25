@@ -3,8 +3,11 @@
   "dockerfileLines": [
     "FROM node:20-alpine",
     "",
-    "# Install FFmpeg",
-    "RUN apk add --no-cache ffmpeg",
+    "# Install FFmpeg and ImageMagick for comprehensive format support",
+    "RUN apk add --no-cache ffmpeg imagemagick graphicsmagick",
+    "",
+    "# Configure ImageMagick policy for better format support",
+    "RUN sed -i 's/none/read,write/g' /etc/ImageMagick-7/policy.xml || true",
     "",
     "# Create app directory",
     "WORKDIR /app",
