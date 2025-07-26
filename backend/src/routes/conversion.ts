@@ -8,11 +8,13 @@ import { ArchiveConverter } from '../services/archiveConverter';
 import { SpreadsheetConverter } from '../services/spreadsheetConverter';
 import { PresentationConverter } from '../services/presentationConverter';
 import { FileUtils } from '../utils/fileUtils';
+import { CleanupManager } from '../utils/cleanupManager';
 import { upload } from '../middleware/index';
 import type { ConversionResponse } from '../types/index';
 
 const router = Router();
 const config = Config.getInstance().get();
+const cleanupManager = CleanupManager.getInstance();
 
 // Initialize services
 const documentConverter = new DocumentConverter();
@@ -21,6 +23,12 @@ const archiveConverter = new ArchiveConverter();
 const spreadsheetConverter = new SpreadsheetConverter();
 const presentationConverter = new PresentationConverter();
 
+// Get supported formats
+router.get('/formats', (req: Request, res: Response) => {
+  const formats = FileUtils.getSupportedFormats();
+  res.json(formats);
+});
+
 // Upload and convert file
 router.post('/convert', upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -28,7 +36,7 @@ router.post('/convert', upload.single('file'), async (req: Request, res: Respons
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { format } = req.body;
+    const { format, useCompression = 'false' } = req.body;
     if (!format) {
       return res.status(400).json({ error: 'Target format not specified' });
     }
@@ -36,6 +44,7 @@ router.post('/convert', upload.single('file'), async (req: Request, res: Respons
     const inputPath = req.file.path;
     const inputFormat = path.extname(req.file.originalname).toLowerCase();
     const outputFormat = format.startsWith('.') ? format : `.${format}`;
+    const shouldCompress = useCompression === 'true';
     
     const outputFilename = `${path.basename(req.file.originalname, inputFormat)}${outputFormat}`;
     const outputPath = path.join(config.outputDir, outputFilename);
@@ -77,7 +86,8 @@ router.post('/convert', upload.single('file'), async (req: Request, res: Respons
           inputPath,
           outputPath,
           outputFormat,
-          'medium'
+          'medium', // Default quality
+          shouldCompress
         );
         break;
 
@@ -97,12 +107,16 @@ router.post('/convert', upload.single('file'), async (req: Request, res: Respons
     // Clean up input file
     await fs.remove(inputPath);
 
+    // Track the output file for automatic cleanup after 5 minutes
+    const finalOutputFilename = path.basename(resultPath);
+    cleanupManager.trackFile(finalOutputFilename);
+
     const response: ConversionResponse = {
       success: true,
       message: 'Conversion completed successfully',
-      downloadUrl: `/api/download/${path.basename(resultPath)}`,
+      downloadUrl: `/api/download/${finalOutputFilename}`,
       originalName: req.file.originalname,
-      convertedName: path.basename(resultPath)
+      convertedName: finalOutputFilename
     };
 
     res.json(response);
@@ -128,9 +142,22 @@ router.get('/download/:filename', async (req: Request, res: Response) => {
     const filename = req.params.filename;
     const filePath = path.join(config.outputDir, filename);
 
+    // Check if file has expired
+    if (cleanupManager.isFileExpired(filename)) {
+      return res.status(410).json({ 
+        error: 'DOWNLOAD_EXPIRED',
+        message: 'Download link has expired. Files are only available for 5 minutes after conversion.',
+        code: 'DOWNLOAD_EXPIRED'
+      });
+    }
+
     // Check if file exists
     if (!(await fs.pathExists(filePath))) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ 
+        error: 'FILE_NOT_FOUND',
+        message: 'File not found. It may have been deleted or never existed.',
+        code: 'FILE_NOT_FOUND'
+      });
     }
 
     // Set appropriate headers
@@ -149,18 +176,33 @@ router.get('/download/:filename', async (req: Request, res: Response) => {
     const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
 
-    // Clean up file after download
+    // Stop tracking and clean up file after download
     fileStream.on('end', async () => {
       try {
+        cleanupManager.stopTracking(filename);
         await fs.remove(filePath);
+        console.log(`🗑️ File downloaded and cleaned up: ${filename}`);
       } catch (error) {
-        console.error('Error cleaning up file:', error);
+        console.error('Error cleaning up file after download:', error);
       }
+    });
+
+    fileStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      res.status(500).json({ 
+        error: 'DOWNLOAD_ERROR',
+        message: 'Error occurred while downloading the file.',
+        code: 'DOWNLOAD_ERROR'
+      });
     });
 
   } catch (error) {
     console.error('Download error:', error);
-    res.status(500).json({ error: 'Download failed' });
+    res.status(500).json({ 
+      error: 'DOWNLOAD_ERROR',
+      message: 'Download failed due to server error.',
+      code: 'DOWNLOAD_ERROR'
+    });
   }
 });
 
@@ -170,12 +212,24 @@ router.get('/formats', (req: Request, res: Response) => {
   res.json(formats);
 });
 
+// Get cleanup statistics (for debugging/monitoring)
+router.get('/cleanup/stats', (req: Request, res: Response) => {
+  const stats = cleanupManager.getStats();
+  res.json({
+    ...stats,
+    fileExpiryTime: '5 minutes',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check
 router.get('/health', (req: Request, res: Response) => {
+  const stats = cleanupManager.getStats();
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    trackedFiles: stats.trackedFiles
   });
 });
 

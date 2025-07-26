@@ -1,136 +1,282 @@
-/* Global Reset and Terminal Green/Black Styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-:root {
-  font-family: 'Share Tech Mono', monospace;
-  line-height: 1.4;
-  font-weight: 400;
-  
-  /* Terminal Green/Black Color Palette */
-  --terminal-green: #00ff00;
-  --bright-green: #00ff41;
-  --dark-green: #008800;
-  --black: #000000;
-  --dark-bg: #0a0a0a;
-  --darker-bg: #050505;
-  --matrix-green: #00ff41;
-  
-  color-scheme: dark;
-  color: var(--terminal-green);
-  background-color: var(--black);
-  
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+/* Custom styles for FastFile - Gray Dark Theme */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
 }
 
 html {
-  height: 100%;
-  overflow: hidden;
+  background-color: #1a1a1a !important;
 }
 
-body {
-  margin: 0;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--black);
-  color: var(--terminal-green);
-  font-family: 'Share Tech Mono', monospace;
-  position: relative;
-}
-
-/* Remove default styling for better terminal experience */
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Orbitron', monospace;
-  font-weight: 700;
-  margin: 0;
-  padding: 0;
-}
-
-a {
-  color: var(--bright-green);
-  text-decoration: none;
-  transition: all 0.3s ease;
-}
-
-a:hover {
-  color: var(--terminal-green);
-  text-shadow: 0 0 10px currentColor;
-}
-
-button {
-  font-family: 'Orbitron', monospace;
-  font-weight: 700;
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: inherit;
-  transition: all 0.3s ease;
-}
-
-button:focus,
-button:focus-visible {
-  outline: 2px solid var(--terminal-green);
-  outline-offset: 2px;
-}
-
-/* Selection styles */
-::selection {
-  background: var(--terminal-green);
-  color: var(--black);
-}
-
-::-moz-selection {
-  background: var(--terminal-green);
-  color: var(--black);
-}
-
-/* Remove scrollbar styles since we're hiding overflow */
-
-/* Root container */
 #root {
-  height: 100vh;
-  width: 100%;
-  position: relative;
+  background-color: #1a1a1a !important;
+  min-height: 100vh;
+}
+
+/* Custom Mantine overrides for gray dark theme */
+.mantine-AppShell-main {
+  min-height: calc(100vh - 60px);
+  background-color: #1a1a1a !important;
+}
+
+.mantine-AppShell-root {
+  background-color: #1a1a1a !important;
+}
+
+/* Header styling */
+.mantine-AppShell-header {
+  background-color: #2a2a2a !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+/* Container and Paper dark styling */
+.mantine-Container-root {
+  background-color: transparent !important;
+}
+
+.mantine-Paper-root {
+  background-color: #2a2a2a !important;
+  border: 1px solid #444 !important;
+  color: #e0e0e0 !important;
+}
+
+/* Text colors for dark theme */
+.mantine-Title-root {
+  color: #ffffff !important;
+}
+
+.mantine-Text-root {
+  color: #e0e0e0 !important;
+}
+
+.mantine-Text-root[data-dimmed] {
+  color: #888 !important;
+}
+
+/* Custom dropzone styles for gray dark */
+.mantine-Dropzone-root {
+  background-color: #2a2a2a !important;
+  border: 2px dashed #555 !important;
+  transition: all 0.3s ease;
+  color: #e0e0e0 !important;
+}
+
+.mantine-Dropzone-root:hover {
+  border-color: #228be6 !important;
+  background-color: #333 !important;
+}
+
+.mantine-Dropzone-root[data-accept] {
+  border-color: #51cf66 !important;
+  background-color: #2a3b2a !important;
+}
+
+.mantine-Dropzone-root[data-reject] {
+  border-color: #ff6b6b !important;
+  background-color: #3b2a2a !important;
+}
+
+/* Card styling for gray dark */
+.mantine-Card-root {
+  background-color: #2a2a2a !important;
+  border: 1px solid #444 !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: #e0e0e0 !important;
+}
+
+.mantine-Card-root:hover {
+  transform: translateY(-2px);
+  background-color: #333 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Button styling */
+.mantine-Button-root {
+  transition: all 0.2s ease;
+}
+
+.mantine-Button-root:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.mantine-Button-root[data-variant="subtle"] {
+  color: #ccc !important;
+}
+
+.mantine-Button-root[data-variant="subtle"]:hover {
+  background-color: #333 !important;
+  color: #fff !important;
+}
+
+/* Select dropdown styling */
+.mantine-Select-root .mantine-Input-input {
+  background-color: #2a2a2a !important;
+  border: 1px solid #555 !important;
+  color: #e0e0e0 !important;
+}
+
+.mantine-Select-root .mantine-Input-input:focus {
+  border-color: #228be6 !important;
+}
+
+.mantine-Select-dropdown {
+  background-color: #2a2a2a !important;
+  border: 1px solid #555 !important;
+}
+
+.mantine-Select-option {
+  color: #e0e0e0 !important;
+}
+
+.mantine-Select-option:hover {
+  background-color: #444 !important;
+}
+
+.mantine-Select-option[data-selected] {
+  background-color: #228be6 !important;
+}
+
+/* Switch styling */
+.mantine-Switch-root {
+  color: #e0e0e0 !important;
+}
+
+.mantine-Switch-label {
+  color: #e0e0e0 !important;
+}
+
+.mantine-Switch-description {
+  color: #888 !important;
+}
+
+/* Progress bar for gray dark */
+.mantine-Progress-root {
+  background-color: #444 !important;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+.mantine-Progress-bar {
+  transition: width 0.3s ease;
 }
 
-/* High contrast mode */
-@media (prefers-contrast: high) {
-  :root {
-    --terminal-green: #00ff00;
-    --bright-green: #00ff41;
-    --dark-green: #008800;
-    --black: #000000;
-  }
+/* Alert styling */
+.mantine-Alert-root {
+  border-radius: 8px;
 }
 
-/* Print styles */
-@media print {
-  body {
-    background: white !important;
-    color: black !important;
+.mantine-Alert-root[data-color="orange"] {
+  background-color: rgba(255, 146, 43, 0.1) !important;
+  border: 1px solid rgba(255, 146, 43, 0.3) !important;
+}
+
+.mantine-Alert-root[data-color="green"] {
+  background-color: rgba(81, 207, 102, 0.1) !important;
+  border: 1px solid rgba(81, 207, 102, 0.3) !important;
+}
+
+.mantine-Alert-root[data-color="red"] {
+  background-color: rgba(255, 107, 107, 0.1) !important;
+  border: 1px solid rgba(255, 107, 107, 0.3) !important;
+}
+
+.mantine-Alert-root[data-color="blue"] {
+  background-color: rgba(34, 139, 230, 0.1) !important;
+  border: 1px solid rgba(34, 139, 230, 0.3) !important;
+}
+
+/* Badge styling */
+.mantine-Badge-root {
+  background-color: #444 !important;
+  color: #e0e0e0 !important;
+}
+
+.mantine-Badge-root[data-variant="light"] {
+  background-color: rgba(34, 139, 230, 0.15) !important;
+  color: #74c0fc !important;
+}
+
+/* Group and Stack spacing */
+.mantine-Group-root {
+  color: inherit;
+}
+
+.mantine-Stack-root {
+  color: inherit;
+}
+
+/* ThemeIcon styling */
+.mantine-ThemeIcon-root {
+  background-color: #444 !important;
+}
+
+.mantine-ThemeIcon-root[data-variant="light"] {
+  background-color: rgba(34, 139, 230, 0.15) !important;
+}
+
+/* Divider styling */
+.mantine-Divider-root {
+  border-color: #444 !important;
+}
+
+/* List styling */
+.mantine-List-root {
+  color: #e0e0e0 !important;
+}
+
+.mantine-List-item {
+  color: #e0e0e0 !important;
+}
+
+/* Grid styling */
+.mantine-Grid-root {
+  color: inherit;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .mantine-Container-root {
+    padding: 0 16px;
   }
   
-  #root {
-    background: white !important;
-    color: black !important;
+  .mantine-Paper-root {
+    padding: 16px !important;
   }
+  
+  .mantine-AppShell-header .mantine-Group-root {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* Loading states */
+.mantine-Loader-root {
+  color: #228be6 !important;
+}
+
+/* Smooth animations */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Scrollbar styling for gray dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2a2a2a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }

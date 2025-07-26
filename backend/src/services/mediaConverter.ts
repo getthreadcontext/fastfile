@@ -83,23 +83,24 @@ export class MediaConverter {
     inputPath: string,
     outputPath: string,
     format: string,
-    quality: 'low' | 'medium' | 'high'
+    quality: 'low' | 'medium' | 'high',
+    useCompression: boolean = false
   ): Promise<string> {
     const outputFormat = format.startsWith('.') ? format.slice(1) : format;
     
     // Check if this is a format that needs special handling
     if (this.needsAlternativeTool(outputFormat)) {
-      return this.convertWithAlternativeTool(inputPath, outputPath, outputFormat, quality);
+      return this.convertWithAlternativeTool(inputPath, outputPath, outputFormat, quality, useCompression);
     }
 
     // Check if FFmpeg supports this format
     if (!this.isFFmpegFormatSupported(outputFormat)) {
       console.warn(`FFmpeg doesn't support ${outputFormat}, trying alternative tools`);
-      return this.convertWithAlternativeTool(inputPath, outputPath, outputFormat, quality);
+      return this.convertWithAlternativeTool(inputPath, outputPath, outputFormat, quality, useCompression);
     }
 
     // Use FFmpeg for supported formats
-    return this.convertWithFFmpeg(inputPath, outputPath, outputFormat, quality);
+    return this.convertWithFFmpeg(inputPath, outputPath, outputFormat, quality, useCompression);
   }
 
   private needsAlternativeTool(format: string): boolean {
@@ -115,7 +116,8 @@ export class MediaConverter {
     inputPath: string,
     outputPath: string,
     format: string,
-    quality: 'low' | 'medium' | 'high'
+    quality: 'low' | 'medium' | 'high',
+    useCompression: boolean = false
   ): Promise<string> {
     const outputFormat = format.toLowerCase();
 
@@ -148,7 +150,7 @@ export class MediaConverter {
 
     // Final fallback: try FFmpeg anyway (might work with different settings)
     try {
-      return await this.convertWithFFmpeg(inputPath, outputPath, outputFormat, quality);
+      return await this.convertWithFFmpeg(inputPath, outputPath, outputFormat, quality, useCompression);
     } catch (error) {
       throw new Error(`Conversion to ${format} failed: No suitable converter available. Please install ImageMagick, GraphicsMagick, or Sharp for better format support. Original error: ${(error as Error).message}`);
     }
@@ -167,15 +169,16 @@ export class MediaConverter {
     command: any,
     format: string,
     inputExt: string,
-    quality: 'low' | 'medium' | 'high'
+    quality: 'low' | 'medium' | 'high',
+    useCompression: boolean = false
   ): any {
     const outputFormat = format.toLowerCase();
     
-    // Basic quality settings
+    // Basic quality settings - adjust for compression
     const qualityMap = {
-      low: { crf: '28', bitrate: '500k', audioBitrate: '96k' },
-      medium: { crf: '23', bitrate: '1000k', audioBitrate: '128k' },
-      high: { crf: '18', bitrate: '2000k', audioBitrate: '192k' }
+      low: { crf: useCompression ? '32' : '28', bitrate: useCompression ? '300k' : '500k', audioBitrate: useCompression ? '64k' : '96k' },
+      medium: { crf: useCompression ? '26' : '23', bitrate: useCompression ? '700k' : '1000k', audioBitrate: useCompression ? '96k' : '128k' },
+      high: { crf: useCompression ? '20' : '18', bitrate: useCompression ? '1500k' : '2000k', audioBitrate: useCompression ? '128k' : '192k' }
     };
     
     const qualitySettings = qualityMap[quality];
@@ -619,7 +622,8 @@ export class MediaConverter {
     inputPath: string,
     outputPath: string,
     format: string,
-    quality: 'low' | 'medium' | 'high'
+    quality: 'low' | 'medium' | 'high',
+    useCompression: boolean = false
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const inputExt = path.extname(inputPath).toLowerCase();
@@ -629,7 +633,7 @@ export class MediaConverter {
         .outputOptions(['-y']); // Always overwrite output file
 
       // Apply simple format-specific settings for common formats
-      command = this.applySimpleFormatSettings(command, format, inputExt, quality);
+      command = this.applySimpleFormatSettings(command, format, inputExt, quality, useCompression);
 
       command
         .on('start', (commandLine) => {
